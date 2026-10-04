@@ -69,14 +69,15 @@ jobs:
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const ver = (pkg.dependencies['ezy-board-viewer'] || '').replace(/^[^0-9]*/, '');
-          if (!ver || !fs.existsSync('patches')) return;
-          for (const f of fs.readdirSync('patches')) {
-            const m = f.match(/^ezy-board-viewer\+(\d+\.\d+\.\d+)\.patch$/);
-            if (m && m[1] !== ver) {
-              const old = 'patches/' + f;
-              const neu = 'patches/ezy-board-viewer+' + ver + '.patch';
-              fs.renameSync(old, neu);
-              console.log('对齐 patch:', old, '->', neu);
+          if (ver && fs.existsSync('patches')) {
+            for (const f of fs.readdirSync('patches')) {
+              const m = f.match(/^ezy-board-viewer\+(\d+\.\d+\.\d+)\.patch$/);
+              if (m && m[1] !== ver) {
+                const old = 'patches/' + f;
+                const neu = 'patches/ezy-board-viewer+' + ver + '.patch';
+                fs.renameSync(old, neu);
+                console.log('对齐 patch:', old, '->', neu);
+              }
             }
           }
           JS
