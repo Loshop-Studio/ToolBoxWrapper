@@ -59,7 +59,12 @@ jobs:
 
       - name: 安装上游依赖
         working-directory: upstream
-        run: npm ci --no-audit --no-fund
+        # ⚠️ 这里必须用 npm install，不能用 npm ci。
+        # 原因：上游的 package-lock.json 与 package.json 不同步
+        # （ezy-board-viewer 在 package.json 是 ^0.1.2，lock 里记成 0.1.2），
+        # npm ci 要求两者严格一致，遇到这种情况会直接报错退出。
+        # npm install 会在本地就地修正 lock 并正常安装，不影响上游仓库。
+        run: npm install --no-audit --no-fund
 
       - name: 构建前端（webview2 模式）
         working-directory: upstream
