@@ -57,17 +57,40 @@ jobs:
         with:
           node-version: '20'
 
+      - name: 对齐 patch 文件名版本号
+        working-directory: upstream
+        shell: bash
+        run: |
+          # patch-package 要求 patch 文件名里的版本号必须和实际安装的版本一致。
+          # 上游 package.json 用 ^x.y.z 时，npm 可能安装到更高补丁版本；若 patches/ 里
+          # 的 patch 文件名还是旧版本，postinstall 会直接失败。这里按 package.json
+          # 声明的 ezy-board-viewer 版本重命名 patch，避免版本漂移导致构建卡死。
+          node - <<'JS'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const ver = (pkg.dependencies['ezy-board-viewer'] || '').replace(/^[^0-9]*/, '');
+          if (!ver || !fs.existsSync('patches')) return;
+          for (const f of fs.readdirSync('patches')) {
+            const m = f.match(/^ezy-board-viewer\+(\d+\.\d+\.\d+)\.patch$/);
+            if (m && m[1] !== ver) {
+              const old = 'patches/' + f;
+              const neu = 'patches/ezy-board-viewer+' + ver + '.patch';
+              fs.renameSync(old, neu);
+              console.log('对齐 patch:', old, '->', neu);
+            }
+          }
+          JS
+
       - name: 安装上游依赖
         working-directory: upstream
-        # 上游 package-lock.json 里 mp4-muxer 的 tarball 地址被写成了淘宝镜像
+        # 上游 package-lock.json 里部分 tarball 地址被写成了国内镜像
         # (registry.npmmirror.com)，GitHub 的美国构建机访问国内镜像会直接失败。
-        # 这里做两层处理：① 把 lock 里的镜像地址换回官方源（只改 CI 里的临时副本）；
-        # ② 再让 npm 强制把任何非官方下载地址换成官方源，防止上游以后又写进镜像地址。
-        # 末尾的 || npm install 是兜底：万一 npm ci 因 lock 严格校验退出，改用 install 继续。
+        # 这里把 lock 里的镜像域名换回 npm 官方源（只改 CI 里的临时副本），并强制
+        # npm 从官方源下载。末尾的 || npm install 是兜底：万一 npm ci 因 lock
+        # 严格校验退出，改用 install 继续。
         shell: bash
         env:
           npm_config_registry: https://registry.npmjs.org
-          npm_config_replace_registry_host: always
         run: |
           sed -i 's|registry\.npmmirror\.com|registry.npmjs.org|g' package-lock.json
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
