@@ -1,0 +1,13 @@
+{
+  "name": "zhongyu-toolbox-portable",
+  "version": "1.0.0",
+  "private": true,
+  "description": "中育工具箱 便携版壳（C# WPF + WebView2）与单文件自解压打包工具",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build-portable.mjs",
+    "pack": "node tools/pack-sfx.mjs",
+    "sync": "node tools/sync-shell.mjs",
+    "sync:check": "node tools/sync-shell.mjs --dry-run"
+  }
+}

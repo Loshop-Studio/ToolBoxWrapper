@@ -1,0 +1,6 @@
+# 统一换行，避免 CRLF 污染（历史教训：被 CRLF 改过的二进制会直接失效）
+* text=auto eol=lf
+
+# SFX 模块是二进制，绝不能被换行转换
+vendor/*.sfx binary
+*.sfx binary
