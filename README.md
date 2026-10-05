@@ -1,4 +1,4 @@
-# 中育工具箱 · 便携版壳
+# 中育工具箱 · 便携版壳（下面全是DeepSeek写的）
 
 把上游 [ZhongYuToolBox_Web](https://github.com/Loshop-Studio/ZhongYuToolBox_Web) 的**前端产物**，套上这个**壳**，
 打成**单文件免安装 exe**（7-Zip 自解压包）：双击即用，程序退出后自动清理临时目录。
