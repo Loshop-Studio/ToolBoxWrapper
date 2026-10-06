@@ -1,4 +1,4 @@
-name: Build portable single-file exe
+name: Build portable zip
 
 # 触发方式：
 #   1. 手动（Actions 页面 → Run workflow，可指定上游分支/标签）
@@ -112,14 +112,23 @@ jobs:
         working-directory: shell
         run: node tools/build-portable.mjs --dist ../upstream/dist --licenses-from ../upstream/node_modules --out ../out
 
-      - name: 打成单文件 SFX
+      - name: 打成免安装 zip（零外部依赖）
         working-directory: shell
-        run: node tools/pack-sfx.mjs --input ../out --out "../dist-exe/中育工具箱（新版免安装）.exe"
+        shell: pwsh
+        run: |
+          # 只用 Windows 自带的 PowerShell + .NET，不需要 7-Zip / Node / Python。
+          # 本仓库 runner 的执行策略可能是 Restricted，这里只对当前进程放行，
+          # 不改系统或用户级设置（-Scope Process）。
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          $ver = (Get-Content ..\upstream\package.json -Raw | ConvertFrom-Json).version
+          "上游版本：$ver" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          .\tools\pack-zip.ps1 -InputDir ..\out -Version $ver `
+            -OutFile "..\dist-exe\中育工具箱-免安装版-v$ver.zip"
 
       - name: 汇总产物信息
         shell: pwsh
         run: |
-          Get-ChildItem dist-exe/*.exe | ForEach-Object {
+          Get-ChildItem dist-exe/*.zip | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
             "产物：$($_.Name)  大小：$([math]::Round($_.Length/1MB,2)) MB" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
             "SHA256：$hash" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
@@ -128,8 +137,8 @@ jobs:
       - name: 上传产物（Artifact）
         uses: actions/upload-artifact@v4
         with:
-          name: portable-webview2-exe
-          path: dist-exe/*.exe
+          name: portable-webview2-zip
+          path: dist-exe/*.zip
           if-no-files-found: error
 
       # ─────────────────────────────────────────────────────────────
@@ -144,7 +153,7 @@ jobs:
       #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #   run: |
       #     $tag = 'portable-' + (Get-Date -Format 'yyyyMMdd-HHmm')
-      #     gh release create $tag dist-exe/*.exe `
+      #     gh release create $tag dist-exe/*.zip `
       #       --title "便携版 $tag" `
       #       --notes "由 GitHub Actions 自动构建，基于上游 ${{ inputs.upstream_ref || 'main' }}" `
       #       --prerelease
