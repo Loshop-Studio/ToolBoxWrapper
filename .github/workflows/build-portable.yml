@@ -1,4 +1,4 @@
-name: Build portable zip
+name: Build portable artifacts
 
 # 触发方式：
 #   1. 手动（Actions 页面 → Run workflow，可指定上游分支/标签）
@@ -112,7 +112,7 @@ jobs:
         working-directory: shell
         run: node tools/build-portable.mjs --dist ../upstream/dist --licenses-from ../upstream/node_modules --out ../out
 
-      - name: 打成免安装 zip（零外部依赖）
+      - name: 打成免安装 zip（推荐产物，零外部依赖）
         working-directory: shell
         shell: pwsh
         run: |
@@ -125,20 +125,37 @@ jobs:
           .\tools\pack-zip.ps1 -InputDir ..\out -Version $ver `
             -OutFile "..\dist-exe\中育工具箱-免安装版-v$ver.zip"
 
+      - name: 打成单文件 exe（备选产物，双击即用）
+        working-directory: shell
+        run: |
+          # 7-Zip 自解压包：用 vendor\7zSD.sfx + LZMA1 压成单个 exe，双击自动解压到
+          # 临时目录并启动。方便是方便，但老存根要往系统临时目录写文件，
+          # 在受管/学校机器上可能弹「Extraction Failed / Can not open output file」——
+          # 遇到这种机器改用上面的 zip 即可。压缩级别 -mx=9 比较慢，耐心等。
+          node tools/pack-sfx.mjs --input ../out `
+            --out "../dist-exe/中育工具箱-免安装版-单文件.exe"
+
       - name: 汇总产物信息
         shell: pwsh
         run: |
-          Get-ChildItem dist-exe/*.zip | ForEach-Object {
+          Get-ChildItem dist-exe/* | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
             "产物：$($_.Name)  大小：$([math]::Round($_.Length/1MB,2)) MB" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
             "SHA256：$hash" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
           }
 
-      - name: 上传产物（Artifact）
+      - name: 上传 zip（推荐）
         uses: actions/upload-artifact@v4
         with:
           name: portable-webview2-zip
           path: dist-exe/*.zip
+          if-no-files-found: error
+
+      - name: 上传单文件 exe（备选）
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-webview2-exe
+          path: dist-exe/*.exe
           if-no-files-found: error
 
       # ─────────────────────────────────────────────────────────────
@@ -153,7 +170,7 @@ jobs:
       #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #   run: |
       #     $tag = 'portable-' + (Get-Date -Format 'yyyyMMdd-HHmm')
-      #     gh release create $tag dist-exe/*.zip `
+      #     gh release create $tag dist-exe/* `
       #       --title "便携版 $tag" `
       #       --notes "由 GitHub Actions 自动构建，基于上游 ${{ inputs.upstream_ref || 'main' }}" `
       #       --prerelease
